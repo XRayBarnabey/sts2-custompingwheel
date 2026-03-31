@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using Godot;
 using HarmonyLib;
@@ -22,5 +23,8 @@ public static class CustomPingWheelInit
             GD.PrintErr($"[CustomPingWheel] Failed to apply Harmony patches: {ex}");
         }
         GD.Print("[CustomPingWheel] Mod initialized.");
+        // TODO: Intercept the Ping button click to show the preset wheel.
+        // Requires an ILSpy dump of the ping button handler first.
+        // Search in ILSpy: Ctrl+Shift+F → "Ping" in MegaCrit.Sts2.Core.UI / MegaCrit.Sts2.Core.Combat
     }
 }
