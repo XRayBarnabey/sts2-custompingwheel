@@ -1,0 +1,11 @@
+{
+  "id": "CustomPingWheel",
+  "name": "Custom Ping Wheel",
+  "author": "XRayBarnabey",
+  "description": "Remplace le ping par défaut par une roue de messages prédéfinis en combat multijoueur.",
+  "version": "v0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": false
+}
