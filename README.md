@@ -41,32 +41,57 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
 > ⚠️ **Les deux joueurs doivent avoir le mod installé et activé** pour que la synchronisation réseau fonctionne.  
 > Si un seul côté a le mod, le join peut crash avec `IndexOutOfRangeException` dans `NetMessageBus`.
 
+## État d'avancement
+
+| Fonctionnalité | Status |
+|---|---|
+| Auto-découverte `PingPresetMessage` dans le bus réseau | ✅ |
+| `RegisterMessageHandler` dans `InitializeShared` | ✅ |
+| Interception clic bouton Ping (`FlavorSynchronizer.SendEndTurnPing`) | ✅ |
+| Debounce custom 1 s (même durée que vanilla) | ✅ |
+| Bulle locale immédiate | ✅ |
+| Synchronisation réseau remote | ✅ |
+| Fallback vanilla en cas d'exception | ✅ |
+| Preset hardcodé à 0 | ⚠️ temporaire |
+| UI wheel de sélection | ❌ TODO |
+| Presets configurables (JSON/config) | ❌ TODO |
+
 ## TODO
 
-- [ ] **Intercepter le clic sur le bouton Ping** (en attente du dump ILSpy du handler ping)
-  - Chercher dans ILSpy : `Ctrl+Shift+F` → `Ping` dans `MegaCrit.Sts2.Core.UI` / `MegaCrit.Sts2.Core.Combat`
-  - On cherche la classe qui affiche le bouton + la méthode appelée au clic
-- [ ] Interface UI pour choisir le preset (wheel overlay)
-- [ ] Presets configurables (fichier JSON ou config BaseLib)
-- [ ] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`
+- [x] **Intercepter le clic sur le bouton Ping**
+  - `FlavorSynchronizer.SendEndTurnPing()` patché via Harmony Prefix
+  - `Patches/FlavorSynchronizer_Patch.cs`
+- [ ] **Interface UI wheel de sélection de preset**
+  - Afficher un overlay de sélection (radial menu ou liste) quand le joueur clique Ping
+  - Remplacer le `const int presetIndex = 0` dans `FlavorSynchronizer_Patch.cs`
+  - Doit s'intégrer dans l'arbre de scène Godot de `NCombatRoom`
+- [ ] **Presets configurables**
+  - Lire les presets depuis un fichier JSON ou via `BaseLib` config
+  - Remplacer `CustomPingWheelState.Presets` (actuellement hardcodé)
+- [ ] **Vérifier l'ID alphabétique de `PingPresetMessage`**
+  - Dump ILSpy : `INetMessageSubtypes.All` pour confirmer position 30 (entre `PeerInputMessage` 29 et `PlayerChoiceMessage` 31)
 
 ## Architecture
 
 ```
-CustomPingWheelInit.cs       ← [ModInitializerAttribute("Initialize")] — point d'entrée
-CustomPingWheelState.cs      ← état global, SendPreset(), OnReceive(), helpers
-Network/PingPresetMessage.cs ← struct INetMessage — auto-découvert par MessageTypes
-Patches/RunManager_Patch.cs  ← Harmony postfix sur RunManager.InitializeShared
+CustomPingWheelInit.cs                  ← [ModInitializerAttribute("Initialize")] — point d'entrée
+CustomPingWheelState.cs                 ← état global, SendPreset(), OnReceive(), helpers
+Network/PingPresetMessage.cs            ← struct INetMessage — auto-découvert par MessageTypes
+Patches/RunManager_Patch.cs             ← Harmony postfix sur RunManager.InitializeShared
+Patches/FlavorSynchronizer_Patch.cs     ← Harmony prefix sur FlavorSynchronizer.SendEndTurnPing
 ```
 
 ## Flux réseau
 
 ```
-Clic ping (local)
-  → SendPreset(index)
-      → ShowBubble(localCreature, text)       [local immédiat]
-      → _net.SendMessage(PingPresetMessage)   [réseau]
-           → OnReceive(msg, senderId)          [côté remote]
+NPingButton clic
+  ↓
+FlavorSynchronizer.SendEndTurnPing()
+  ↓ [Harmony Prefix — return false, debounce 1 s]
+CustomPingWheelState.SendPreset(index)
+  ├── ShowBubble(localCreature, text)       [local immédiat]
+  └── _net.SendMessage(PingPresetMessage)   [réseau]
+           → OnReceive(msg, senderId)        [côté remote]
                → FindCreature(senderId)
                → ShowBubble(remoteCreature, text)
 ```
