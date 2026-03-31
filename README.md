@@ -48,7 +48,53 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
   - On cherche la classe qui affiche le bouton + la méthode appelée au clic
 - [ ] Interface UI pour choisir le preset (wheel overlay)
 - [ ] Presets configurables (fichier JSON ou config BaseLib)
-- [ ] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`
+- [x] ~~Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`~~ — voir section **Recherche réseau** ci-dessous
+
+## Recherche réseau — `INetMessageSubtypes` / `_subtypes`
+
+### Résultats de la recherche dans ce dépôt
+
+| Terme | Trouvé dans le mod ? | Notes |
+|---|---|---|
+| `INetMessageSubtypes` | ❌ | Classe privée du DLL du jeu (`sts2.dll`), non exposée aux mods |
+| `_subtypes` | ❌ | Champ privé backing de `INetMessageSubtypes.All`, inaccessible depuis le mod |
+| `MessageTypes` | ✅ (commentaires) | Classe du jeu qui construit le cache vanilla + mods au démarrage |
+| `PingPresetMessage` | ✅ | `CustomPingWheelCode/Network/PingPresetMessage.cs` |
+
+### Chaîne de découverte automatique
+
+```
+ModManager.LoadedMods              ← DLLs des mods chargés
+  ↓
+ReflectionHelper.ModTypes          ← tous les Types de toutes les DLLs de mods (lazy, une fois)
+  ↓
+ReflectionHelper.GetSubtypesInMods<INetMessage>()
+  ↓
+MessageTypes static ctor           ← vanilla (INetMessageSubtypes._subtypes) + mods, triés alphabétiquement
+  ↓
+NetTypeCache                       ← lookup byte ID → Type (désérialisation réseau)
+```
+
+`INetMessageSubtypes._subtypes` est le tableau interne des types vanilla. Le mod n'a pas besoin
+d'y accéder : `MessageTypes` l'inclut automatiquement et ajoute les types mods détectés par réflexion.
+
+### Position alphabétique de `PingPresetMessage`
+
+- Nom : **`PingPresetMessage`**
+- Commence par **`P`** → s'intercale **après** tous les types vanilla commençant par `A`–`O`
+  et **avant** tous ceux commençant par `Q`–`Z`.
+- Dans le bucket `P` : vient après `Pa…`–`Ph…` et avant `Po…`–`Py…`.
+- L'ID numérique exact dépend de la liste complète vanilla ; pour le connaître à l'exécution :
+
+```csharp
+GD.Print($"[CPW] PingPresetMessage ID = {MessageTypes.TypeToId<PingPresetMessage>()}");
+```
+
+### Conditions de fonctionnement
+
+1. La DLL du mod doit être chargée par `ModManager` **avant** la première utilisation de `MessageTypes`.
+2. **Les deux joueurs doivent avoir le mod chargé** — sinon les IDs divergent et `NetMessageBus`
+   lève `IndexOutOfRangeException` chez le joueur sans le mod.
 
 ## Architecture
 
