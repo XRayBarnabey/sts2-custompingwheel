@@ -1,0 +1,25 @@
+# .NET / C#
+bin/
+obj/
+*.user
+*.suo
+.vs/
+packages/
+
+# Godot
+.godot/
+*.import
+export.cfg
+export_presets.cfg
+
+# NuGet
+*.nupkg
+nuget.config
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

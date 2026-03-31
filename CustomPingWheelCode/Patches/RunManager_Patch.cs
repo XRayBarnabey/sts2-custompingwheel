@@ -2,6 +2,7 @@ using System;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Run;
+using CustomPingWheel.CustomPingWheelCode.Network;
 
 namespace CustomPingWheel.CustomPingWheelCode.Patches;
 
