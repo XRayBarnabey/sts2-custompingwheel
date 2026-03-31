@@ -41,6 +41,34 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
 > ⚠️ **Les deux joueurs doivent avoir le mod installé et activé** pour que la synchronisation réseau fonctionne.  
 > Si un seul côté a le mod, le join peut crash avec `IndexOutOfRangeException` dans `NetMessageBus`.
 
+## Network Protocol Details
+
+### INetMessage ID assignment
+
+STS2 uses `NetTypeCache<INetMessage>` which sorts ALL known `INetMessage` types
+alphabetically by `Type.Name` (`string.CompareOrdinal`) and assigns IDs by index.
+
+**Vanilla message count:** 49 types (confirmed from `INetMessageSubtypes._subtypes`)
+
+**`PingPresetMessage` confirmed position (with mod loaded):**
+
+| ID | Type | Source |
+|----|------|--------|
+| 29 | `PeerInputMessage` | vanilla |
+| **30** | **`PingPresetMessage`** | **this mod** |
+| 31 | `PlayerChoiceMessage` | vanilla (was 30) |
+| ... | all subsequent IDs shift +1 | vanilla |
+
+**No name collision:** No vanilla type starts with `PingP` — the name is safe.
+
+### Why both players must have the mod
+
+When the mod is loaded, `PingPresetMessage` is inserted at ID 30.
+Without the mod, ID 30 = `PlayerChoiceMessage`.
+A host with the mod sending `PingPresetMessage` (ID 30) to a client without the mod
+causes the client to attempt deserializing it as `PlayerChoiceMessage` →
+wrong payload length → `IndexOutOfRangeException` → disconnect.
+
 ## TODO
 
 - [ ] **Intercepter le clic sur le bouton Ping** (en attente du dump ILSpy du handler ping)
@@ -48,7 +76,7 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
   - On cherche la classe qui affiche le bouton + la méthode appelée au clic
 - [ ] Interface UI pour choisir le preset (wheel overlay)
 - [ ] Presets configurables (fichier JSON ou config BaseLib)
-- [ ] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`
+- [x] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All` — **confirmed ID 30, no name collision**
 
 ## Architecture
 
