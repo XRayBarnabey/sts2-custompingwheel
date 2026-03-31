@@ -43,9 +43,9 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
 
 ## TODO
 
-- [ ] **Intercepter le clic sur le bouton Ping** (en attente du dump ILSpy du handler ping)
-  - Chercher dans ILSpy : `Ctrl+Shift+F` → `Ping` dans `MegaCrit.Sts2.Core.UI` / `MegaCrit.Sts2.Core.Combat`
-  - On cherche la classe qui affiche le bouton + la méthode appelée au clic
+- [x] **Intercepter le clic sur le bouton Ping** via `FlavorSynchronizer.SendEndTurnPing` Harmony Prefix
+- [ ] **Preset selection UI wheel** — currently hardcoded to preset 0; needs an overlay UI to let the player choose
+- [ ] Respect vanilla debounce in the custom path (the vanilla guard does NOT apply since the prefix returns false before the vanilla method runs — a custom debounce is needed)
 - [ ] Interface UI pour choisir le preset (wheel overlay)
 - [ ] Presets configurables (fichier JSON ou config BaseLib)
 - [ ] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`
@@ -57,13 +57,15 @@ CustomPingWheelInit.cs       ← [ModInitializerAttribute("Initialize")] — poi
 CustomPingWheelState.cs      ← état global, SendPreset(), OnReceive(), helpers
 Network/PingPresetMessage.cs ← struct INetMessage — auto-découvert par MessageTypes
 Patches/RunManager_Patch.cs  ← Harmony postfix sur RunManager.InitializeShared
+Patches/FlavorSynchronizer_Patch.cs  ← Harmony prefix on FlavorSynchronizer.SendEndTurnPing — intercepts ping button click
 ```
 
 ## Flux réseau
 
 ```
-Clic ping (local)
-  → SendPreset(index)
+Clic bouton Ping (NPingButton → FlavorSynchronizer.SendEndTurnPing)
+  ↓ [intercepté par FlavorSynchronizer_SendEndTurnPing_Patch — return false]
+  → SendPreset(presetIndex)
       → ShowBubble(localCreature, text)       [local immédiat]
       → _net.SendMessage(PingPresetMessage)   [réseau]
            → OnReceive(msg, senderId)          [côté remote]
