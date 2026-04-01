@@ -16,6 +16,10 @@ public static class CustomPingWheelInit
             var harmony = new Harmony("XRayBarnabey.CustomPingWheel");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
             GD.Print("[CustomPingWheel] Harmony patches applied.");
+
+            // Log each patched method so we can verify NPingButton.OnRelease was found.
+            foreach (var method in harmony.GetPatchedMethods())
+                GD.Print($"[CustomPingWheel] Patched: {method.DeclaringType?.FullName}.{method.Name}");
         }
         catch (Exception ex)
         {
