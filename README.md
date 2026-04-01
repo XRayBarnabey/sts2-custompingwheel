@@ -43,9 +43,7 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
 
 ## TODO
 
-- [ ] **Intercepter le clic sur le bouton Ping** (en attente du dump ILSpy du handler ping)
-  - Chercher dans ILSpy : `Ctrl+Shift+F` → `Ping` dans `MegaCrit.Sts2.Core.UI` / `MegaCrit.Sts2.Core.Combat`
-  - On cherche la classe qui affiche le bouton + la méthode appelée au clic
+- [x] **Intercepter le clic sur le bouton Ping** — patch Harmony prefix sur `NPingButton.OnRelease`
 - [ ] Interface UI pour choisir le preset (wheel overlay)
 - [ ] Presets configurables (fichier JSON ou config BaseLib)
 - [ ] Vérifier l'ID alphabétique de `PingPresetMessage` via dump `INetMessageSubtypes.All`
@@ -53,16 +51,17 @@ Copier dans `<STS2>/mods/CustomPingWheel/` :
 ## Architecture
 
 ```
-CustomPingWheelInit.cs       ← [ModInitializerAttribute("Initialize")] — point d'entrée
-CustomPingWheelState.cs      ← état global, SendPreset(), OnReceive(), helpers
-Network/PingPresetMessage.cs ← struct INetMessage — auto-découvert par MessageTypes
-Patches/RunManager_Patch.cs  ← Harmony postfix sur RunManager.InitializeShared
+CustomPingWheelInit.cs           ← [ModInitializerAttribute("Initialize")] — point d'entrée
+CustomPingWheelState.cs          ← état global, SendPreset(), OnReceive(), helpers
+Network/PingPresetMessage.cs     ← struct INetMessage — auto-découvert par MessageTypes
+Patches/RunManager_Patch.cs      ← Harmony postfix sur RunManager.InitializeShared (enregistre le handler réseau)
+Patches/NPingButton_Patch.cs     ← Harmony prefix sur NPingButton.OnRelease (intercepte le clic ping)
 ```
 
 ## Flux réseau
 
 ```
-Clic ping (local)
+Clic ping (local) → NPingButton.OnRelease [intercepté par patch Harmony prefix]
   → SendPreset(index)
       → ShowBubble(localCreature, text)       [local immédiat]
       → _net.SendMessage(PingPresetMessage)   [réseau]
@@ -70,3 +69,21 @@ Clic ping (local)
                → FindCreature(senderId)
                → ShowBubble(remoteCreature, text)
 ```
+
+## Cartographie du Ping Vanilla — NCombatUi & NPingButton
+
+Résultats de l'analyse ILSpy (confirmés, confiance 99 %) :
+
+### NCombatUi
+- `PingButton` (type `NPingButton`) est initialisé dans `_Ready()` via `GetNode<NPingButton>("%PingButton")`.
+- Aucun signal Godot custom lié au PingButton n'est défini dans `NCombatUi`.
+- Méthodes notables mentionnant `PingButton` :
+  - `_Ready()` — initialisation
+  - `Enable()` / `Disable()` — appelle `PingButton.RefreshEnabled()` (affiche/masque selon état combat)
+  - `AnimOut()` — appelle `PingButton.OnCombatEnded()` (reset à la fin du combat)
+
+### NPingButton (héritage NButton)
+- Hérite de `NButton` ; la gestion du clic se fait via `OnRelease()`.
+- **Point d'injection retenu** : `NPingButton.OnRelease` (Harmony Prefix, `return false` pour supprimer le ping vanilla).
+- Le patch est dans `Patches/NPingButton_Patch.cs`.
+- Si le patch ne s'applique pas (avertissement Harmony dans les logs), vérifier le namespace exact de `NPingButton` dans ILSpy — il pourrait être dans `MegaCrit.Sts2.Core.Combat.UI` plutôt que `MegaCrit.Sts2.Core.UI`.
